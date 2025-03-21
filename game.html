@@ -92,10 +92,28 @@
         }
 
         #message {
-            font-size: 20px;
+            font-size: 24px;
             color: #dc3545;
             font-weight: bold;
             display: none;
+            margin-bottom: 20px;
+        }
+
+        #restartGameBtn {
+            width: 200px;
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: none;
+        }
+
+        #restartGameBtn:hover {
+            background-color: #0056b3;
         }
 
         .hidden {
@@ -114,7 +132,7 @@
     <div id="gameBoard"></div>
     <p>匹配对数: <span id="matchCount">0</span> / <span id="totalPairs">0</span></p>
     <div id="message">恭喜你，游戏结束！</div>
-
+    <button id="restartGameBtn" onclick="restartGame()">再来一局！</button>
     <audio id="successSound" src="success.mp3"></audio>
 
     <script>
@@ -175,6 +193,7 @@
             const gameBoard = document.getElementById('gameBoard');
             gameBoard.innerHTML = '';
             document.getElementById('message').style.display = 'none';
+            document.getElementById('restartGameBtn').style.display = 'none';
             matchCount = 0;
             document.getElementById('matchCount').textContent = matchCount;
             document.getElementById('totalPairs').textContent = vocabulary.length;
@@ -193,11 +212,19 @@
         function checkGameCompletion() {
             if (document.querySelectorAll('.bubble').length === 0) {
                 document.getElementById('message').style.display = 'block';
-                document.getElementById('inputArea').classList.remove('hidden');
+                document.getElementById('restartGameBtn').style.display = 'block';
                 document.getElementById('gameBoard').innerHTML = '';
-                document.getElementById('matchCount').textContent = 0;
-                document.getElementById('totalPairs').textContent = 0;
             }
+        }
+
+        function restartGame() {
+            document.getElementById('message').style.display = 'none';
+            document.getElementById('restartGameBtn').style.display = 'none';
+            document.getElementById('inputArea').classList.remove('hidden');
+            document.getElementById('matchCount').textContent = 0;
+            document.getElementById('totalPairs').textContent = 0;
+            document.getElementById('hanziInput').value = '';
+            document.getElementById('pinyinInput').value = '';
         }
     </script>
 </body>
