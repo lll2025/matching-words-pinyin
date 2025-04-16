@@ -1,232 +1,350 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8">
-    <title>生词复习游戏</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+  <meta charset="UTF-8">
+  <title>生词匹配游戏 / Vocabulary Matching Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- XLSX 用于解析 Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: "Microsoft YaHei", sans-serif;
+      background-color: #f4f4f9;
+      margin: 0; padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    h1 {
+      color: #333; font-size: 32px; line-height: 1; margin-bottom: 16px;
+      text-align: center;
+    }
+    h1 span {
+      display: block; margin-top: 8px;
+      font-size: 12px; color: #999;
+    }
+    .container {
+      background: #fff; padding: 20px 30px;
+      border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      width: 90%; max-width: 600px; margin-bottom: 20px; text-align: center;
+    }
+    .hidden { display: none; }
 
-        h1 {
-            color: #333;
-            font-size: 32px;
-            margin-bottom: 20px;
-        }
+    /* 项目选择 */
+    #projectSelection p { margin: 0; }
+    #projectSelection p:first-of-type {
+      font-size: 22px; color: #333; margin-bottom: 2px;
+    }
+    #projectSelection p:nth-of-type(2) {
+      font-size: 10px; color: #999; margin-bottom: 12px;
+    }
+    .projectBtn {
+      padding: 10px 20px; margin: 8px;
+      border: 1px solid #ccc; border-radius: 5px;
+      background: #fafafa; color: #000;
+      cursor: pointer; transition: background 0.3s;
+      font-size: 18px;
+    }
+    .projectBtn.selected {
+      background: #e0f7fa; border-color: #00acc1;
+    }
+    .projectBtn span {
+      display: block; font-size: 10px; color: #999; margin-top: 2px;
+    }
+    #confirmSelectionBtn {
+      margin-top: 32px;
+      background: #007BFF; color: #fff;
+      border: none; border-radius: 5px;
+      padding: 10px 20px; font-size: 18px;
+      cursor: pointer; transition: background 0.3s;
+    }
+    #confirmSelectionBtn .btn-cn { display: block; line-height: 1; }
+    #confirmSelectionBtn .btn-en {
+      display: block; margin-top: 4px;
+      font-size: 10px; color: rgba(255,255,255,0.8);
+      line-height: 1;
+    }
+    #confirmSelectionBtn:hover { background: #0056b3; }
 
-        .input-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 600px;
-            margin-bottom: 20px;
-        }
+    /* 手动输入 */
+    #manualInputArea p { margin: 0; }
+    #manualInputArea p:first-of-type {
+      font-size: 22px; color: #333; margin-bottom: 2px;
+    }
+    #manualInputArea p:nth-of-type(2) {
+      font-size: 10px; color: #999; margin-bottom: 12px;
+    }
+    #manualInputArea textarea {
+      width: 100%; height: 100px;
+      margin: 8px 0; padding: 8px;
+      border: 1px solid #ccc; border-radius: 5px;
+      font-size: 16px; resize: none;
+    }
+    #manualInputArea input[type="file"] { margin: 10px 0; }
+    .commonBtn {
+      background: #007BFF; color: #fff;
+      border: none; border-radius: 5px;
+      padding: 12px 25px; margin: 5px;
+      font-size: 18px; cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .commonBtn:hover { background: #0056b3; }
 
-        #hanziInput,
-        #pinyinInput {
-            width: 100%;
-            height: 150px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            resize: none;
-        }
+    /* 游戏区 */
+    #gameBoard {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .bubble {
+      position: relative;
+      width: 180px; height: 60px;
+      border-radius: 10px;
+      text-align: center; margin: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: transform 0.2s; cursor: pointer;
+      user-select: none; display: flex; align-items: center; justify-content: center;
+      color: #000; font-weight: bold;
+    }
+    .bubble:hover { transform: scale(1.05); }
+    .bubble.selected { border: 3px solid #000; }
 
-        #startGameBtn {
-            width: 100%;
-            padding: 12px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
+    .bubble.hanzi {
+      background: linear-gradient(135deg,#FFD1DC,#FFB6C1);
+      font-size: 22px;
+    }
+    .bubble.pinyin {
+      background: linear-gradient(135deg,#D6F5D6,#C1E1C1);
+      font-size: 22px;
+    }
+    .bubble.english {
+      background: linear-gradient(135deg,#D0E8FF,#B3E5FC);
+      font-family: "Times New Roman", serif;
+      font-size: 18px; color: rgba(0,0,0,0.8);
+    }
 
-        #startGameBtn:hover {
-            background-color: #0056b3;
-        }
-
-        #gameBoard {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .bubble {
-            width: 180px;
-            height: 60px;
-            border-radius: 10px;
-            background-color: #28a745;
-            color: white;
-            font-size: 18px;
-            line-height: 60px;
-            text-align: center;
-            margin: 8px;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s ease;
-        }
-
-        .bubble:hover {
-            transform: scale(1.05);
-        }
-
-        p {
-            font-size: 18px;
-            color: #333;
-        }
-
-        #message {
-            font-size: 24px;
-            color: #dc3545;
-            font-weight: bold;
-            display: none;
-            margin-bottom: 20px;
-        }
-
-        #restartGameBtn {
-            width: 200px;
-            padding: 12px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            display: none;
-        }
-
-        #restartGameBtn:hover {
-            background-color: #0056b3;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
+    /* 信息区 */
+    #matchCountDisplay {
+      font-size: 20px; font-weight: bold;
+      margin-bottom: 20px;
+    }
+    #message { text-align: center; margin-bottom: 24px; }
+    .msg-cn {
+      font-size: 24px; color: #dc3545; font-weight: bold;
+      margin: 0 0 16px 0; line-height: 1;
+    }
+    .msg-en {
+      font-size: 10px; color: #999; margin: 0;
+    }
+    #restartGameBtn {
+      margin-top: 12px; width: 200px; padding: 12px;
+    }
+  </style>
 </head>
-
 <body>
-    <h1>生词复习游戏</h1>
-    <div class="input-area" id="inputArea">
-        <textarea id="hanziInput" placeholder="请输入多个生词，每行一个"></textarea>
-        <textarea id="pinyinInput" placeholder="请输入对应的拼音，每行一个"></textarea>
-        <button id="startGameBtn" onclick="startGame()">开始游戏</button>
+  <h1>生词匹配游戏<br/><span>Vocabulary Matching Game</span></h1>
+
+  <!-- 1. 项目选择 -->
+  <div id="projectSelection" class="container">
+    <p>请选择练习的项目</p >
+    <p>Please select items to practice</p >
+    <div>
+      <button class="projectBtn" data-type="hanzi">生词<br/><span>Vocabulary</span></button>
+      <button class="projectBtn" data-type="pinyin">拼音<br/><span>Pinyin</span></button>
+      <button class="projectBtn" data-type="english">英语意思<br/><span>English Meaning</span></button>
     </div>
-    <div id="gameBoard"></div>
-    <p>匹配对数: <span id="matchCount">0</span> / <span id="totalPairs">0</span></p>
-    <div id="message">恭喜你，游戏结束！</div>
-    <button id="restartGameBtn" onclick="restartGame()">再来一局！</button>
-    <audio id="successSound" src="success.mp3"></audio>
+    <button id="confirmSelectionBtn">
+      <span class="btn-cn">确定</span>
+      <span class="btn-en">Confirm</span>
+    </button>
+  </div>
 
-    <script>
-        let matchCount = 0;
-        let vocabulary = [];
+  <!-- 2. 手动输入 / 导入 Excel -->
+  <div id="manualInputArea" class="container hidden">
+    <p>请填写练习内容</p >
+    <p>Please input the practice content</p >
+    <div id="manualInputs"></div>
+    <input type="file" id="excelFileInput" accept=".xls,.xlsx">
+    <button class="commonBtn" onclick="importExcel()">导入 Excel 文件 / Import Excel File</button>
+    <button class="commonBtn" onclick="startGameManual()">开始游戏 / Start Game</button>
+  </div>
 
-        function createBubble(text, type) {
-            const bubble = document.createElement('div');
-            bubble.classList.add('bubble');
-            bubble.textContent = text;
-            bubble.dataset.type = type;
-            bubble.addEventListener('click', function () {
-                const selectedBubbles = document.querySelectorAll('.selected');
-                if (selectedBubbles.length === 0) {
-                    this.classList.add('selected');
-                } else {
-                    const firstBubble = selectedBubbles[0];
-                    if (firstBubble.dataset.type !== this.dataset.type) {
-                        const firstText = firstBubble.textContent;
-                        const secondText = this.textContent;
-                        const isMatch = vocabulary.some(item => {
-                            return (item.hanzi === firstText && item.pinyin === secondText) || (item.hanzi === secondText && item.pinyin === firstText);
-                        });
-                        if (isMatch) {
-                            firstBubble.remove();
-                            this.remove();
-                            matchCount++;
-                            document.getElementById('matchCount').textContent = matchCount;
-                            const successSound = document.getElementById('successSound');
-                            successSound.play();
-                            checkGameCompletion();
-                        } else {
-                            firstBubble.classList.remove('selected');
-                        }
-                    } else {
-                        firstBubble.classList.remove('selected');
-                    }
-                }
-            });
-            return bubble;
+  <!-- 3. 游戏区 -->
+  <div id="gameBoard" class="hidden"></div>
+  <p id="matchCountDisplay" class="hidden">
+    匹配对数: <span id="matchCount">0</span> / <span id="totalPairs">0</span>
+  </p >
+  <div id="message" class="hidden">
+    <p class="msg-cn">恭喜你，游戏结束！ 🏆🎉</p >
+    <p class="msg-en">Congratulations, Game Over!</p >
+  </div>
+  <button id="restartGameBtn" class="commonBtn hidden" onclick="restartGame()">
+    再来一局！<br/><span>Restart</span>
+  </button>
+
+  <!-- 音频 -->
+  <audio id="successSound" src="success.mp3"></audio>
+  <audio id="errorSound" src="error.mp3"></audio>
+  <audio id="clickSound" src="click.mp3"></audio>
+  <audio id="endSound" src="end.mp3"></audio>
+
+  <script>
+    let vocabulary = [], selectedBubbles = [], selectedProjects = [], matchCount = 0;
+
+    // 项目选择
+    document.querySelectorAll('.projectBtn').forEach(btn=>{
+      btn.onclick = ()=>btn.classList.toggle('selected');
+    });
+    document.getElementById('confirmSelectionBtn').onclick = ()=>{
+      selectedProjects = [...document.querySelectorAll('.projectBtn.selected')]
+        .map(b=>b.dataset.type);
+      if(selectedProjects.length<2){
+        alert("请选择至少两项练习项目！");
+        return;
+      }
+      document.getElementById('projectSelection').classList.add('hidden');
+      const div = document.getElementById('manualInputs');
+      div.innerHTML = '';
+      selectedProjects.forEach(t=>{
+        const label = t==='hanzi'?'生词':t==='pinyin'?'拼音':'英语意思';
+        const ta = document.createElement('textarea');
+        ta.id = t+'Input';
+        ta.placeholder = `请输入${label}，每行一个`;
+        div.appendChild(ta);
+      });
+      document.getElementById('manualInputArea').classList.remove('hidden');
+    };
+
+    function createBubble(txt,type,id){
+      const b=document.createElement('div');
+      b.className='bubble '+type;
+      b.textContent=txt;
+      b.dataset.type=type; b.dataset.id=id;
+      b.onclick=()=>bubbleClicked(b);
+      return b;
+    }
+    function generateBubbles(){
+      const board=document.getElementById('gameBoard');
+      board.innerHTML=''; matchCount=0;
+      document.getElementById('matchCount').textContent=0;
+      document.getElementById('totalPairs').textContent=vocabulary.length;
+      selectedBubbles=[];
+      let arr=[];
+      vocabulary.forEach((it,i)=>{
+        it.id=i;
+        selectedProjects.forEach(t=>arr.push(createBubble(it[t],t,i)));
+      });
+      arr.sort(()=>Math.random()-.5).forEach(b=>board.appendChild(b));
+      document.getElementById('gameBoard').classList.remove('hidden');
+      document.getElementById('matchCountDisplay').classList.remove('hidden');
+    }
+
+    function validateSelection(){
+      if(selectedBubbles.length!==selectedProjects.length) return false;
+      const id=selectedBubbles[0].dataset.id;
+      return selectedBubbles.every(b=>b.dataset.id===id);
+    }
+
+    function bubbleClicked(b){
+      document.getElementById('clickSound').play();
+      if(b.classList.contains('matched')) return;
+      if(b.classList.contains('selected')){
+        b.classList.remove('selected');
+        selectedBubbles=selectedBubbles.filter(x=>x!==b);
+      } else {
+        b.classList.add('selected');
+        selectedBubbles.push(b);
+      }
+      if(selectedBubbles.length===selectedProjects.length){
+        if(validateSelection()){
+          selectedBubbles.forEach(x=>x.remove());
+          matchCount++;
+          document.getElementById('matchCount').textContent=matchCount;
+          document.getElementById('successSound').play();
+          selectedBubbles=[];
+          if(!document.querySelector('.bubble')){
+            document.getElementById('endSound').play();
+            document.getElementById('message').classList.remove('hidden');
+            document.getElementById('restartGameBtn').classList.remove('hidden');
+          }
+        } else {
+          document.getElementById('errorSound').play();
+          setTimeout(()=>{
+            selectedBubbles.forEach(x=>x.classList.remove('selected'));
+            selectedBubbles=[];
+          },1000);
         }
+      }
+    }
 
-        function startGame() {
-            const hanziInput = document.getElementById('hanziInput').value.trim().split('\n');
-            const pinyinInput = document.getElementById('pinyinInput').value.trim().split('\n');
-            if (hanziInput.length !== pinyinInput.length) {
-                alert('输入的生词和拼音数量不匹配，请检查！');
-                return;
-            }
-            vocabulary = [];
-            for (let i = 0; i < hanziInput.length; i++) {
-                vocabulary.push({
-                    hanzi: hanziInput[i],
-                    pinyin: pinyinInput[i]
-                });
-            }
+    async function translateText(txt){
+      try{
+        const res=await fetch("https://libretranslate.de/translate",{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({q:txt,source:'zh',target:'en',format:'text'})
+        });
+        const d=await res.json(); return d.translatedText||'';
+      }catch{ return ''; }
+    }
 
-            const gameBoard = document.getElementById('gameBoard');
-            gameBoard.innerHTML = '';
-            document.getElementById('message').style.display = 'none';
-            document.getElementById('restartGameBtn').style.display = 'none';
-            matchCount = 0;
-            document.getElementById('matchCount').textContent = matchCount;
-            document.getElementById('totalPairs').textContent = vocabulary.length;
-
-            // 隐藏输入区域
-            document.getElementById('inputArea').classList.add('hidden');
-
-            const bubbles = vocabulary.flatMap(item => [
-                createBubble(item.hanzi, 'hanzi'),
-                createBubble(item.pinyin, 'pinyin')
-            ]).sort(() => Math.random() - 0.5);
-            bubbles.forEach(bubble => gameBoard.appendChild(bubble));
-            console.log("游戏已开始，已生成" + bubbles.length + "个气泡");
+    async function startGameManual(){
+      let count=null,ok=true,inp={};
+      for(let t of selectedProjects){
+        const arr=document.getElementById(t+'Input').value
+          .trim().split('\n').filter(l=>l);
+        if(count===null) count=arr.length; else if(arr.length!==count) ok=false;
+        inp[t]=arr;
+      }
+      if(!ok||count===0){ alert("请确保行数一致且不为空！"); return; }
+      vocabulary=[];
+      for(let i=0;i<count;i++){
+        const e={};
+        for(let t of selectedProjects){
+          if(t==='english'){
+            e.english = inp.english?.[i]||await translateText(inp.hanzi[i]||'');
+          } else e[t]=inp[t][i];
         }
+        vocabulary.push(e);
+      }
+      document.getElementById('manualInputArea').classList.add('hidden');
+      generateBubbles();
+    }
 
-        function checkGameCompletion() {
-            if (document.querySelectorAll('.bubble').length === 0) {
-                document.getElementById('message').style.display = 'block';
-                document.getElementById('restartGameBtn').style.display = 'block';
-                document.getElementById('gameBoard').innerHTML = '';
-            }
+    function importExcel(){
+      if(selectedProjects.length===0){ alert("请先选择项目"); return; }
+      const f=document.getElementById('excelFileInput').files[0];
+      if(!f){ alert("请选择文件"); return; }
+      const r=new FileReader();
+      r.onload=e=>{
+        const data=new Uint8Array(e.target.result),
+              wb=XLSX.read(data,{type:'array'}),
+              ws=wb.Sheets[wb.SheetNames[0]],
+              d=XLSX.utils.sheet_to_json(ws,{header:1});
+        vocabulary=[];
+        for(let i=1;i<d.length;i++){
+          const row=d[i],ent={};
+          if(selectedProjects.includes('hanzi')) ent.hanzi=row[0];
+          if(selectedProjects.includes('pinyin')) ent.pinyin=row[1];
+          if(selectedProjects.includes('english')) ent.english=row[2];
+          vocabulary.push(ent);
         }
+        if(vocabulary.length===0){ alert("数据格式不对"); return; }
+        document.getElementById('projectSelection').classList.add('hidden');
+        document.getElementById('manualInputArea').classList.add('hidden');
+        generateBubbles();
+      };
+      r.readAsArrayBuffer(f);
+    }
 
-        function restartGame() {
-            document.getElementById('message').style.display = 'none';
-            document.getElementById('restartGameBtn').style.display = 'none';
-            document.getElementById('inputArea').classList.remove('hidden');
-            document.getElementById('matchCount').textContent = 0;
-            document.getElementById('totalPairs').textContent = 0;
-            document.getElementById('hanziInput').value = '';
-            document.getElementById('pinyinInput').value = '';
-        }
-    </script>
+    function restartGame(){
+      document.getElementById('message').classList.add('hidden');
+      document.getElementById('restartGameBtn').classList.add('hidden');
+      document.getElementById('projectSelection').classList.remove('hidden');
+      document.getElementById('manualInputArea').classList.add('hidden');
+      document.getElementById('gameBoard').classList.add('hidden');
+      document.getElementById('matchCountDisplay').classList.add('hidden');
+      document.getElementById('matchCount').textContent=0;
+      vocabulary=[]; selectedBubbles=[]; selectedProjects=[];
+      document.querySelectorAll('.projectBtn').forEach(b=>b.classList.remove('selected'));
+    }
+  </script>
 </body>
-
-</html>    
+</html>
